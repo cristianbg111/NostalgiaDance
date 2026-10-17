@@ -685,25 +685,26 @@
             </div>
             <div class="action-buttons">
               <span class="badge-year">${year}</span>
-              <button class="request-btn" onclick="requestSong('${safeTitle}', '${safeArtist}', '${artwork100}', '${previewAudio}', '${genre}')">➕ Pedir</button>
+              <button class="request-btn" onclick="requestSong('${safeTitle}', '${safeArtist}', '${artwork100}', '${previewAudio}', '${genre}', '${year}')">➕ Pedir</button>
             </div>
           </div>
         `;
       }).join('');
     }
 
-    function requestSong(title, artist, artwork, previewAudio, genre) {
+    function requestSong(title, artist, artwork, previewAudio, genre, year) {
       let requesterName = prompt("Introduce el nombre de la persona que la pide:");
       if (!requesterName || requesterName.trim() === "") return;
       requesterName = requesterName.trim();
 
-      // Enviar a Firebase incluyendo el previewAudio y género
+      // Enviar a Firebase incluyendo el año
       queueRef.push({
         title: title,
         artist: artist,
         artwork: artwork,
         previewAudio: previewAudio || '',
         genre: genre || 'Dance',
+        year: year || 'N/D',
         user: requesterName,
         timestamp: Date.now()
       });
@@ -730,14 +731,18 @@
         const artworkHD = (item.artwork || '').replace('100x100bb', '1000x1000bb');
         const previewAudio = item.previewAudio || '';
         const genre = item.genre || 'Dance';
+        const year = item.year || 'N/D';
 
         return `
           <div class="queue-item">
             <img src="${item.artwork}" alt="${item.title}" onclick="openModal('${artworkHD}', '${safeTitle}', '${safeArtist}', '${previewAudio}', '${genre}')">
-            <div class="queue-info" onclick="openModal('${artworkHD}', '${safeTitle}', '${safeArtist}', '${previewAudio}', '${genre}')">
+            <div class="song-info" onclick="openModal('${artworkHD}', '${safeTitle}', '${safeArtist}', '${previewAudio}', '${genre}')">
               <div class="song-title">${index + 1}. ${item.title}</div>
               <div class="song-artist">${item.artist}</div>
               <div class="requester-tag">Pedido por: ${item.user}</div>
+            </div>
+            <div class="action-buttons">
+              <span class="badge-year">${year}</span>
             </div>
           </div>
         `;
