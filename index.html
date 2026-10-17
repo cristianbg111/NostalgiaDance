@@ -568,7 +568,7 @@
       const cleanQuery = encodeURIComponent(cleanKey);
 
       try {
-        const res = await fetch(`https://itunes.apple.com/search?term=${cleanQuery}&limit=10&entity=song`);
+        const res = await fetch(`https://itunes.apple.com/search?term=${cleanQuery}&limit=15&entity=song`);
         if (res.ok) {
           const data = await res.json();
           if (thisSearchId === currentSearchId) {
@@ -603,7 +603,7 @@
 
       const script = document.createElement('script');
       script.id = 'jsonp_itunes';
-      script.src = `https://itunes.apple.com/search?term=${cleanQuery}&limit=10&entity=song&callback=${callbackName}`;
+      script.src = `https://itunes.apple.com/search?term=${cleanQuery}&limit=15&entity=song&callback=${callbackName}`;
       script.onerror = function() {
         delete window[callbackName];
         if (thisSearchId === currentSearchId) {
@@ -621,6 +621,13 @@
       }
 
       saveToHistory(query);
+
+      // ORDENAR: Del año más antiguo al más moderno (primero los más viejos)
+      results.sort((a, b) => {
+        const yearA = a.releaseDate ? new Date(a.releaseDate).getFullYear() : 9999;
+        const yearB = b.releaseDate ? new Date(b.releaseDate).getFullYear() : 9999;
+        return yearA - yearB;
+      });
 
       resultsDiv.innerHTML = results.map((song) => {
         const releaseDate = song.releaseDate ? new Date(song.releaseDate) : null;
