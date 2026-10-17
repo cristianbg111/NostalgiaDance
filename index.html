@@ -264,7 +264,8 @@
       border: 1px solid var(--border);
       margin-bottom: 8px;
     }
-    .queue-info { flex: 1; overflow: hidden; }
+    .queue-item img { cursor: pointer; }
+    .queue-info { flex: 1; overflow: hidden; cursor: pointer; }
     .requester-tag {
       font-size: 0.75rem;
       color: var(--accent);
@@ -649,23 +650,25 @@
             </div>
             <div class="action-buttons">
               <span class="badge-year">${year}</span>
-              <button class="request-btn" onclick="requestSong('${safeTitle}', '${safeArtist}', '${artwork100}')">➕ Pedir</button>
+              <button class="request-btn" onclick="requestSong('${safeTitle}', '${safeArtist}', '${artwork100}', '${previewAudio}', '${genre}')">➕ Pedir</button>
             </div>
           </div>
         `;
       }).join('');
     }
 
-    function requestSong(title, artist, artwork) {
+    function requestSong(title, artist, artwork, previewAudio, genre) {
       let requesterName = prompt("Introduce el nombre de la persona que la pide:");
       if (!requesterName || requesterName.trim() === "") return;
       requesterName = requesterName.trim();
 
-      // Enviar a Firebase en tiempo real
+      // Enviar a Firebase en tiempo real incluyendo los detalles multimedia
       queueRef.push({
         title: title,
         artist: artist,
         artwork: artwork,
+        previewAudio: previewAudio || '',
+        genre: genre || 'Dance',
         user: requesterName,
         timestamp: Date.now()
       });
@@ -686,16 +689,24 @@
       }
 
       items.sort((a, b) => a.timestamp - b.timestamp);
-      queueResults.innerHTML = items.map((item, index) => `
-        <div class="queue-item">
-          <img src="${item.artwork}" alt="${item.title}" style="width: 48px; height: 48px; border-radius: 8px; object-fit: cover;">
-          <div class="queue-info">
-            <div class="song-title">${index + 1}. ${item.title}</div>
-            <div class="song-artist">${item.artist}</div>
-            <div class="requester-tag">Pedido por: ${item.user}</div>
+      queueResults.innerHTML = items.map((item, index) => {
+        const safeTitle = (item.title || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const safeArtist = (item.artist || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const artworkHD = (item.artwork || '').replace('100x100bb', '1000x1000bb');
+        const previewAudio = item.previewAudio || '';
+        const genre = item.genre || 'Dance';
+
+        return `
+          <div class="queue-item">
+            <img src="${item.artwork}" alt="${item.title}" style="width: 48px; height: 48px; border-radius: 8px; object-fit: cover;" onclick="openModal('${artworkHD}', '${safeTitle}', '${safeArtist}', '${previewAudio}', '${genre}')">
+            <div class="queue-info" onclick="openModal('${artworkHD}', '${safeTitle}', '${safeArtist}', '${previewAudio}', '${genre}')">
+              <div class="song-title">${index + 1}. ${item.title}</div>
+              <div class="song-artist">${item.artist}</div>
+              <div class="requester-tag">Pedido por: ${item.user}</div>
+            </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     function clearQueuePrompt() {
