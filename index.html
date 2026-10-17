@@ -264,7 +264,7 @@
       border: 1px solid var(--border);
       margin-bottom: 8px;
     }
-    .queue-item img { cursor: pointer; }
+    .queue-item img { width: 48px; height: 48px; border-radius: 8px; object-fit: cover; cursor: pointer; }
     .queue-info { flex: 1; overflow: hidden; cursor: pointer; }
     .requester-tag {
       font-size: 0.75rem;
@@ -698,7 +698,7 @@
 
         return `
           <div class="queue-item">
-            <img src="${item.artwork}" alt="${item.title}" style="width: 48px; height: 48px; border-radius: 8px; object-fit: cover;" onclick="openModal('${artworkHD}', '${safeTitle}', '${safeArtist}', '${previewAudio}', '${genre}')">
+            <img src="${item.artwork}" alt="${item.title}" onclick="openModal('${artworkHD}', '${safeTitle}', '${safeArtist}', '${previewAudio}', '${genre}')">
             <div class="queue-info" onclick="openModal('${artworkHD}', '${safeTitle}', '${safeArtist}', '${previewAudio}', '${genre}')">
               <div class="song-title">${index + 1}. ${item.title}</div>
               <div class="song-artist">${item.artist}</div>
