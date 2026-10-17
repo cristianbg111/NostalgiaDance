@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>BUSCADOR NOSTALGIA DANCE</title>
+  
+  <!-- Firebase SDK (Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --input-bg: #0f172a;
+      --input-border: #475569;
+      --accent: #38bdf8;
+      --accent-hover: #7dd3fc;
+      --accent-text: #0f172a;
+      --item-bg: #0f172a;
+      --badge-bg: #0284c7;
+      --badge-text: #ffffff;
+      --tag-bg: #334155;
+      --spotify: #1db954;
+      --tidal: #000000;
+      --youtube: #ff0000;
+      --modal-overlay: rgba(0, 0, 0, 0.8);
+      --danger: #ef4444;
+    }
+
+    [data-theme="light"] {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --input-bg: #f1f5f9;
+      --input-border: #cbd5e1;
+      --accent: #0284c7;
+      --accent-hover: #0369a1;
+      --accent-text: #ffffff;
+      --item-bg: #f8fafc;
+      --badge-bg: #e0f2fe;
+      --badge-text: #0369a1;
+      --tag-bg: #f1f5f9;
+      --modal-overlay: rgba(0, 0, 0, 0.6);
+      --danger: #dc2626;
+    }
+
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+      -webkit-tap-highlight-color: transparent; 
+    }
+
+    html { -webkit-text-size-adjust: 100%; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    h1 { font-size: 1.25rem; font-weight: 700; color: var(--text); line-height: 1.2; }
+    
+    .theme-btn {
+      background: var(--tag-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      white-space: nowrap;
+      -webkit-appearance: none;
+      touch-action: manipulation;
+    }
+
+    p.subtitle { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 16px; }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: var(--tag-bg);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 10px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: var(--accent-text);
+      border-color: var(--accent);
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .search-box {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    input {
+      flex: 1;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--input-border);
+      background: var(--input-bg);
+      color: var(--text);
+      font-size: 16px; 
+      outline: none;
+      -webkit-appearance: none;
+    }
+    input:focus { border-color: var(--accent); }
+
+    .search-btn {
+      background: var(--accent);
+      color: var(--accent-text);
+      border: none;
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.95rem;
+      -webkit-appearance: none;
+      touch-action: manipulation;
+    }
+
+    .history-section { margin-bottom: 20px; }
+    .history-title { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .history-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag {
+      background: var(--tag-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      -webkit-appearance: none;
+      touch-action: manipulation;
+    }
+
+    .results { display: flex; flex-direction: column; gap: 10px; }
+    
+    .song-item {
+      display: flex;
+      gap: 12px;
+      background: var(--item-bg);
+      padding: 10px 12px;
+      border-radius: 12px;
+      align-items: center;
+      border: 1px solid var(--border);
+    }
+    .song-item img { width: 52px; height: 52px; border-radius: 8px; object-fit: cover; cursor: pointer; }
+    .song-info { flex: 1; overflow: hidden; cursor: pointer; }
+    .song-title { font-weight: 600; font-size: 0.95rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .song-artist { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
+    .action-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: flex-end;
+    }
+
+    .request-btn {
+      background: var(--badge-bg);
+      color: var(--badge-text);
+      border: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.75rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .badge-year {
+      background: var(--tag-bg);
+      color: var(--text-muted);
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.75rem;
+    }
+    
+    .status-msg { text-align: center; color: var(--text-muted); font-size: 0.9rem; padding: 12px 0; }
+
+    /* Queue styles */
+    .queue-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .queue-title { font-size: 0.95rem; font-weight: 700; color: var(--text); }
+    .clear-queue-btn {
+      background: transparent;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .queue-item {
+      display: flex;
+      gap: 12px;
+      background: var(--item-bg);
+      padding: 10px 12px;
+      border-radius: 12px;
+      align-items: center;
+      border: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+    .queue-info { flex: 1; overflow: hidden; }
+    .requester-tag {
+      font-size: 0.75rem;
+      color: var(--accent);
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    .footer {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .footer strong { color: var(--accent); }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: var(--modal-overlay);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      padding: 20px;
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+    }
+    .modal-content {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+    }
+    .modal-content img { width: 100%; aspect-ratio: 1/1; border-radius: 12px; object-fit: cover; margin-bottom: 12px; }
+    .modal-title { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .modal-artist { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 12px; }
+
+    .dj-stats {
+      display: flex;
+      justify-content: space-around;
+      background: var(--item-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 12px;
+    }
+    .stat-box { display: flex; flex-direction: column; align-items: center; }
+    .stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; }
+    .stat-value { font-size: 1.1rem; font-weight: 800; color: var(--accent); }
+
+    .tap-btn {
+      background: var(--tag-bg);
+      border: 1px dashed var(--accent);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      margin-bottom: 12px;
+      width: 100%;
+    }
+
+    audio { width: 100%; height: 40px; margin-bottom: 12px; }
+    .modal-actions { display: flex; flex-direction: column; gap: 8px; }
+
+    .spotify-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      background: var(--spotify); color: #ffffff; text-decoration: none;
+      padding: 12px 16px; border-radius: 8px; font-weight: 600; font-size: 0.9rem;
+    }
+    .tidal-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      background: var(--tidal); color: #ffffff; text-decoration: none;
+      padding: 12px 16px; border-radius: 8px; font-weight: 600; font-size: 0.9rem;
+      border: 1px solid var(--border); cursor: pointer;
+    }
+    .youtube-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      background: var(--youtube); color: #ffffff; text-decoration: none;
+      padding: 12px 16px; border-radius: 8px; font-weight: 600; font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .close-btn {
+      background: var(--tag-bg); color: var(--text); border: 1px solid var(--border);
+      padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="header-row">
+      <h1>BUSCADOR NOSTALGIA DANCE</h1>
+      <button class="theme-btn" id="themeToggle">☀️ Modo Claro</button>
+    </div>
+    <p class="subtitle">Busca canciones y pide tus temas para el programa.</p>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('search')">🔍 Buscador</button>
+      <button class="tab-btn" onclick="switchTab('queue')">📻 Lista Próximo Directo</button>
+    </div>
+
+    <!-- TAB BUSCADOR -->
+    <div id="tabSearch" class="tab-content active">
+      <form class="search-box" id="searchForm" action="javascript:void(0);">
+        <input type="text" id="songInput" placeholder="Ej: Pont Aeri, Gigi D'Agostino..." autocomplete="off" spellcheck="false" enterkeyhint="search" />
+        <button type="submit" class="search-btn" id="searchBtn">🔍</button>
+      </form>
+
+      <div class="history-section" id="historySection" style="display: none;">
+        <div class="history-title">Búsquedas recientes:</div>
+        <div class="history-tags" id="historyTags"></div>
+      </div>
+
+      <div id="results" class="results"></div>
+    </div>
+
+    <!-- TAB LISTA PRÓXIMO DIRECTO -->
+    <div id="tabQueue" class="tab-content">
+      <div class="queue-header">
+        <span class="queue-title">Peticiones para el Próximo Directo</span>
+        <button class="clear-queue-btn" onclick="clearQueuePrompt()">🗑️ Borrar Lista</button>
+      </div>
+      <div id="queueResults" class="results">
+        <p class="status-msg">Cargando lista...</p>
+      </div>
+    </div>
+
+    <footer class="footer">
+      App creada por <strong>The First & The Last Dj´s</strong>
+    </footer>
+  </div>
+
+  <!-- MODAL DETALLES -->
+  <div class="modal" id="imageModal">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <img id="modalImg" src="" alt="Portada HD">
+      <div class="modal-title" id="modalTitle"></div>
+      <div class="modal-artist" id="modalArtist"></div>
+      
+      <div class="dj-stats">
+        <div class="stat-box">
+          <span class="stat-label">BPM Estimado</span>
+          <span class="stat-value" id="modalBpm">---</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Tonalidad (Camelot)</span>
+          <span class="stat-value" id="modalKey">---</span>
+        </div>
+      </div>
+
+      <button class="tap-btn" id="tapBtn">⏱️ Tap Tempo (Haz clic al ritmo)</button>
+
+      <div id="audioContainer">
+        <audio id="modalAudio" controls playsinline></audio>
+      </div>
+
+      <div class="modal-actions">
+        <a id="modalSpotifyBtn" href="#" target="_blank" class="spotify-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.376 0 0 5.377 0 12c0 6.624 5.376 12 12 12 6.624 0 12-5.376 12-12 0-6.623-5.376-12-12-12zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.02 8.52-.6 11.64 1.32.42.18.48.66.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141 C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+          </svg>
+          Escuchar en Spotify
+        </a>
+        <a id="modalTidalBtn" href="#" class="tidal-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 7.2L7.2 12 12 16.8 16.8 12 12 7.2zm-9.6 0L0 12l2.4 2.4L4.8 12 2.4 7.2zm19.2 0L19.2 12l2.4 2.4 2.4-2.4-2.4-4.8zM12 0L7.2 4.8 12 9.6 16.8 4.8 12 0z"/>
+          </svg>
+          Escuchar en Tidal
+        </a>
+        <a id="modalYoutubeBtn" href="#" class="youtube-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+          </svg>
+          Buscar en YouTube
+        </a>
+        <button class="close-btn" id="closeModalBtn">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Configuración de Firebase integrada correctamente con tu proyecto
+    const firebaseConfig = {
+      apiKey: "AIzaSyDcAeldon_Sb8yF4tKTGNvKFJGahvpBQ5E",
+      authDomain: "nostalgia-dce1f.firebaseapp.com",
+      projectId: "nostalgia-dce1f",
+      storageBucket: "nostalgia-dce1f.firebasestorage.app",
+      messagingSenderId: "1031021641946",
+      appId: "1:1031021641946:web:8ebeb6996ae766fc9ce5e3",
+      measurementId: "G-ETJBHB55MC",
+      databaseURL: "https://nostalgia-dce1f-default-rtdb.europe-west1.firebasedatabase.app/"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const queueRef = db.ref('nostalgia_queue');
+
+    let debounceTimer;
+    let tapTimes = [];
+    let currentSearchTerm = '';
+    let currentSearchId = 0;
+    const searchCache = new Map();
+    const camelotKeys = ["8A (A min)", "9A (E min)", "10A (B min)", "11A (F# min)", "12A (C# min)", "4A (F min)", "5A (C min)", "6A (G min)", "7A (D min)"];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadHistory();
+      const savedTheme = localStorage.getItem('theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      updateThemeButton(savedTheme);
+
+      document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+      
+      const songInput = document.getElementById('songInput');
+      songInput.addEventListener('input', handleInput);
+
+      document.getElementById('searchForm').addEventListener('submit', (e) => {
+        if (e) e.preventDefault();
+        songInput.blur();
+        clearTimeout(debounceTimer);
+        const query = songInput.value.trim();
+        if (query) executeSearch(query);
+      });
+
+      document.getElementById('tapBtn').addEventListener('click', tapTempo);
+      document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+      document.getElementById('imageModal').addEventListener('click', closeModal);
+      document.getElementById('modalTidalBtn').addEventListener('click', openTidalApp);
+      document.getElementById('modalYoutubeBtn').addEventListener('click', openYoutubeApp);
+
+      // Escuchar la lista en tiempo real desde Firebase
+      queueRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        renderQueue(data);
+      });
+    });
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+      if (tabName === 'search') {
+        document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        document.getElementById('tabSearch').classList.add('active');
+      } else {
+        document.querySelectorAll('.tab-btn')[1].classList.add('active');
+        document.getElementById('tabQueue').classList.add('active');
+      }
+    }
+
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('theme', newTheme);
+      updateThemeButton(newTheme);
+    }
+
+    function updateThemeButton(theme) {
+      document.getElementById('themeToggle').textContent = theme === 'dark' ? '☀️ Modo Claro' : '🌙 Modo Oscuro';
+    }
+
+    function handleInput() {
+      clearTimeout(debounceTimer);
+      const query = document.getElementById('songInput').value.trim();
+      
+      if (query.length < 2) {
+        document.getElementById('results').innerHTML = '';
+        return;
+      }
+
+      const cleanKey = query.toLowerCase();
+      if (searchCache.has(cleanKey)) {
+        renderResults(searchCache.get(cleanKey), query);
+        return;
+      }
+
+      debounceTimer = setTimeout(() => {
+        executeSearch(query);
+      }, 500);
+    }
+
+    async function executeSearch(query) {
+      const resultsDiv = document.getElementById('results');
+      const cleanKey = query.toLowerCase();
+
+      if (searchCache.has(cleanKey)) {
+        renderResults(searchCache.get(cleanKey), query);
+        return;
+      }
+
+      resultsDiv.innerHTML = '<p class="status-msg">Buscando coincidencias...</p>';
+      currentSearchId++;
+      const thisSearchId = currentSearchId;
+      const cleanQuery = encodeURIComponent(cleanKey);
+
+      try {
+        const res = await fetch(`https://itunes.apple.com/search?term=${cleanQuery}&limit=10&entity=song`);
+        if (res.ok) {
+          const data = await res.json();
+          if (thisSearchId === currentSearchId) {
+            const results = data.results || [];
+            searchCache.set(cleanKey, results);
+            renderResults(results, query);
+            return;
+          }
+        }
+      } catch (err) {}
+
+      executeJSONP(cleanQuery, cleanKey, query, thisSearchId);
+    }
+
+    function executeJSONP(cleanQuery, cleanKey, originalQuery, thisSearchId) {
+      const resultsDiv = document.getElementById('results');
+      const callbackName = 'cb_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+      const oldScript = document.getElementById('jsonp_itunes');
+      if (oldScript) oldScript.remove();
+
+      window[callbackName] = function(data) {
+        delete window[callbackName];
+        const scriptTag = document.getElementById('jsonp_itunes');
+        if (scriptTag) scriptTag.remove();
+
+        if (thisSearchId === currentSearchId) {
+          const results = (data && data.results) ? data.results : [];
+          searchCache.set(cleanKey, results);
+          renderResults(results, originalQuery);
+        }
+      };
+
+      const script = document.createElement('script');
+      script.id = 'jsonp_itunes';
+      script.src = `https://itunes.apple.com/search?term=${cleanQuery}&limit=10&entity=song&callback=${callbackName}`;
+      script.onerror = function() {
+        delete window[callbackName];
+        if (thisSearchId === currentSearchId) {
+          resultsDiv.innerHTML = '<p class="status-msg">Error de conexión. Pulsa 🔍 para reintentar.</p>';
+        }
+      };
+      document.body.appendChild(script);
+    }
+
+    function renderResults(results, query) {
+      const resultsDiv = document.getElementById('results');
+      if (!results || results.length === 0) {
+        resultsDiv.innerHTML = '<p class="status-msg">No se encontraron coincidencias.</p>';
+        return;
+      }
+
+      saveToHistory(query);
+
+      resultsDiv.innerHTML = results.map((song) => {
+        const releaseDate = song.releaseDate ? new Date(song.releaseDate) : null;
+        const year = releaseDate && !isNaN(releaseDate) ? releaseDate.getFullYear() : 'N/D';
+        const artwork100 = song.artworkUrl100 || 'https://via.placeholder.com/100?text=Sin+Imagen';
+        const artworkHD = song.artworkUrl100 ? song.artworkUrl100.replace('100x100bb', '1000x1000bb') : artwork100;
+        const previewAudio = song.previewUrl || '';
+        const genre = song.primaryGenreName || '';
+
+        const safeTitle = (song.trackName || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const safeArtist = (song.artistName || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+        return `
+          <div class="song-item">
+            <img src="${artwork100}" alt="${song.trackName}" onclick="openModal('${artworkHD}', '${safeTitle}', '${safeArtist}', '${previewAudio}', '${genre}')">
+            <div class="song-info" onclick="openModal('${artworkHD}', '${safeTitle}', '${safeArtist}', '${previewAudio}', '${genre}')">
+              <div class="song-title">${song.trackName}</div>
+              <div class="song-artist">${song.artistName}</div>
+            </div>
+            <div class="action-buttons">
+              <span class="badge-year">${year}</span>
+              <button class="request-btn" onclick="requestSong('${safeTitle}', '${safeArtist}', '${artwork100}')">➕ Pedir</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function requestSong(title, artist, artwork) {
+      let requesterName = prompt("Introduce el nombre de la persona que la pide:");
+      if (!requesterName || requesterName.trim() === "") return;
+      requesterName = requesterName.trim();
+
+      // Enviar a Firebase en tiempo real
+      queueRef.push({
+        title: title,
+        artist: artist,
+        artwork: artwork,
+        user: requesterName,
+        timestamp: Date.now()
+      });
+
+      alert(`¡Canción añadida a la Lista Próximo Directo correctamente! 🎉`);
+    }
+
+    function renderQueue(data) {
+      const queueResults = document.getElementById('queueResults');
+      if (!data) {
+        queueResults.innerHTML = '<p class="status-msg">La lista está vacía actualmente.</p>';
+        return;
+      }
+
+      const items = [];
+      for (let id in data) {
+        items.push({ id: id, ...data[id] });
+      }
+
+      items.sort((a, b) => a.timestamp - b.timestamp);
+      queueResults.innerHTML = items.map((item, index) => `
+        <div class="queue-item">
+          <img src="${item.artwork}" alt="${item.title}" style="width: 48px; height: 48px; border-radius: 8px; object-fit: cover;">
+          <div class="queue-info">
+            <div class="song-title">${index + 1}. ${item.title}</div>
+            <div class="song-artist">${item.artist}</div>
+            <div class="requester-tag">Pedido por: ${item.user}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function clearQueuePrompt() {
+      const pass = prompt("Introduce la contraseña para borrar la lista:");
+      if (pass === null) return;
+      
+      if (pass === "jbdeejay1") {
+        queueRef.remove().then(() => {
+          alert("Lista borrada con éxito.");
+        });
+      } else {
+        alert("Contraseña incorrecta.");
+      }
+    }
+
+    function estimateBpm(genre, title) {
+      const lowerTitle = title.toLowerCase();
+      if (lowerTitle.includes('makina') || lowerTitle.includes('hardcore')) return '155-165';
+      if (lowerTitle.includes('progressive') || lowerTitle.includes('trance')) return '138-142';
+      if (genre.includes('Dance') || genre.includes('Electronic')) return '135-140';
+      return '128-138';
+    }
+
+    function getHashKey(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return camelotKeys[Math.abs(hash) % camelotKeys.length];
+    }
+
+    function openModal(imgUrl, title, artist, audioUrl, genre) {
+      document.getElementById('modalImg').src = imgUrl;
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('modalArtist').textContent = artist;
+      document.getElementById('modalBpm').textContent = estimateBpm(genre, title) + ' BPM';
+      document.getElementById('modalKey').textContent = getHashKey(title + artist);
+      
+      tapTimes = [];
+      currentSearchTerm = `${title} ${artist}`;
+
+      const audioElement = document.getElementById('modalAudio');
+      if (audioUrl) {
+        audioElement.style.display = 'block';
+        audioElement.src = audioUrl;
+      } else {
+        audioElement.style.display = 'none';
+        audioElement.src = '';
+      }
+
+      const musicQuery = encodeURIComponent(currentSearchTerm);
+      document.getElementById('modalSpotifyBtn').href = `https://open.spotify.com/search/${musicQuery}`;
+      document.getElementById('imageModal').style.display = 'flex';
+    }
+
+    function openTidalApp(event) {
+      event.preventDefault();
+      const query = encodeURIComponent(currentSearchTerm);
+      const appUrl = `tidal://search?q=${query}`;
+      const webUrl = `https://listen.tidal.com/search?q=${query}`;
+      const start = Date.now();
+      window.location.href = appUrl;
+      setTimeout(() => {
+        if (Date.now() - start < 2000) window.open(webUrl, '_blank');
+      }, 1500);
+    }
+
+    function openYoutubeApp(event) {
+      event.preventDefault();
+      const query = encodeURIComponent(currentSearchTerm);
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const appUrl = isIOS ? `youtube://results?search_query=${query}` : `vnd.youtube://results?search_query=${query}`;
+      const webUrl = `https://www.youtube.com/results?search_query=${query}`;
+      const start = Date.now();
+      window.location.href = appUrl;
+      setTimeout(() => {
+        if (Date.now() - start < 2000) window.open(webUrl, '_blank');
+      }, 1500);
+    }
+
+    function tapTempo() {
+      const now = Date.now();
+      tapTimes.push(now);
+      if (tapTimes.length > 1) {
+        if (tapTimes.length > 5) tapTimes.shift();
+        let intervals = [];
+        for (let i = 1; i < tapTimes.length; i++) {
+          intervals.push(tapTimes[i] - tapTimes[i - 1]);
+        }
+        const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+        const calculatedBpm = Math.round(60000 / avgInterval);
+        if (calculatedBpm >= 40 && calculatedBpm <= 220) {
+          document.getElementById('modalBpm').textContent = `${calculatedBpm} BPM (Tap)`;
+        }
+      }
+    }
+
+    function closeModal() {
+      const audioElement = document.getElementById('modalAudio');
+      audioElement.pause();
+      audioElement.src = '';
+      document.getElementById('imageModal').style.display = 'none';
+    }
+
+    function saveToHistory(query) {
+      let history = JSON.parse(localStorage.getItem('searchHistory')) || [];
+      history = history.filter(item => item.toLowerCase() !== query.toLowerCase());
+      history.unshift(query);
+      if (history.length > 5) history.pop();
+      localStorage.setItem('searchHistory', JSON.stringify(history));
+      loadHistory();
+    }
+
+    function loadHistory() {
+      const history = JSON.parse(localStorage.getItem('searchHistory')) || [];
+      const section = document.getElementById('historySection');
+      const tagsContainer = document.getElementById('historyTags');
+
+      if (history.length === 0) {
+        section.style.display = 'none';
+        return;
+      }
+      section.style.display = 'block';
+      tagsContainer.innerHTML = history.map(item => `
+        <button class="tag" onclick="searchFromHistory('${item}')">${item}</button>
+      `).join('');
+    }
+
+    function searchFromHistory(query) {
+      document.getElementById('songInput').value = query;
+      handleInput();
+    }
+  </script>
+</body>
+</html>
