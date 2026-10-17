@@ -662,7 +662,7 @@
       if (!requesterName || requesterName.trim() === "") return;
       requesterName = requesterName.trim();
 
-      // Enviar a Firebase en tiempo real incluyendo los detalles multimedia
+      // Enviar a Firebase incluyendo el previewAudio y género
       queueRef.push({
         title: title,
         artist: artist,
