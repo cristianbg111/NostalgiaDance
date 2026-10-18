@@ -468,7 +468,7 @@
         <span class="queue-title">Peticiones para el Próximo Directo</span>
         <div class="queue-actions">
           <button class="pdf-btn" onclick="exportQueueToPDF()">📄 Exportar PDF</button>
-          <button class="clear-queue-btn" onclick="clearQueuePrompt()">🗑️ Borrar</button>
+          <button class="clear-queue-btn" onclick="clearQueueSecure()">🗑️ Borrar</button>
         </div>
       </div>
       <div id="queueResults" class="results">
@@ -558,10 +558,12 @@
     const searchCache = new Map();
     const camelotKeys = ["8A (A min)", "9A (E min)", "10A (B min)", "11A (F# min)", "12A (C# min)", "4A (F min)", "5A (C min)", "6A (G min)", "7A (D min)"];
 
-    // Variables de paginación para la lista
     let globalQueueItems = [];
     let currentPage = 1;
     const itemsPerPage = 10;
+
+    // Hash encriptado SHA-256 correspondiente a la contraseña "jbdeejay1"
+    const CORRECT_PASSWORD_HASH = "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8";
 
     document.addEventListener('DOMContentLoaded', () => {
       loadHistory();
@@ -588,12 +590,36 @@
       document.getElementById('modalTidalBtn').addEventListener('click', openTidalApp);
       document.getElementById('modalYoutubeBtn').addEventListener('click', openYoutubeApp);
 
-      // Escuchar la lista en tiempo real desde Firebase
       queueRef.on('value', (snapshot) => {
         const data = snapshot.val();
         processQueueData(data);
       });
     });
+
+    // Función segura para encriptar la contraseña introducida por el usuario
+    async function hashString(string) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(string);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function clearQueueSecure() {
+      const pass = prompt("Introduce la contraseña para borrar la lista:");
+      if (pass === null) return;
+
+      const inputHash = await hashString(pass);
+
+      if (inputHash === CORRECT_PASSWORD_HASH) {
+        queueRef.remove().then(() => {
+          currentPage = 1;
+          alert("Lista borrada con éxito.");
+        });
+      } else {
+        alert("Contraseña incorrecta.");
+      }
+    }
 
     function switchTab(tabName) {
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -798,7 +824,6 @@
         items.push({ id: id, ...data[id] });
       }
 
-      // Ordenar de mayor a menor votos (count)
       items.sort((a, b) => {
         const countA = a.count || 1;
         const countB = b.count || 1;
@@ -810,7 +835,6 @@
 
       globalQueueItems = items;
       
-      // Controlar que la página actual no sea mayor que el total posible
       const totalPages = Math.ceil(globalQueueItems.length / itemsPerPage) || 1;
       if (currentPage > totalPages) currentPage = totalPages;
 
@@ -835,7 +859,6 @@
       const endIndex = startIndex + itemsPerPage;
       const currentItems = globalQueueItems.slice(startIndex, endIndex);
 
-      // Mostrar controles de paginación solo si hay más de 10 elementos
       if (globalQueueItems.length > itemsPerPage) {
         paginationDiv.style.display = 'flex';
         pageInfoText.textContent = `Página ${currentPage} de ${totalPages}`;
@@ -883,20 +906,6 @@
 
     function exportQueueToPDF() {
       window.print();
-    }
-
-    function clearQueuePrompt() {
-      const pass = prompt("Introduce la contraseña para borrar la lista:");
-      if (pass === null) return;
-      
-      if (pass === "jbdeejay1") {
-        queueRef.remove().then(() => {
-          currentPage = 1;
-          alert("Lista borrada con éxito.");
-        });
-      } else {
-        alert("Contraseña incorrecta.");
-      }
     }
 
     function estimateBpm(genre, title) {
