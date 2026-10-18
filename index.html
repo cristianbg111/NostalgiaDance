@@ -34,6 +34,7 @@
       --modal-overlay: rgba(0, 0, 0, 0.8);
       --danger: #ef4444;
       --success: #22c55e;
+      --count-bg: #f59e0b;
     }
 
     [data-theme="light"] {
@@ -54,6 +55,7 @@
       --modal-overlay: rgba(0, 0, 0, 0.6);
       --danger: #dc2626;
       --success: #16a34a;
+      --count-bg: #d97706;
     }
 
     * { 
@@ -296,6 +298,45 @@
       margin-top: 2px;
     }
 
+    .badge-count {
+      background: var(--count-bg);
+      color: #000000;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 0.75rem;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    /* Paginación */
+    .pagination {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .page-btn {
+      background: var(--tag-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .page-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .page-info {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
     .footer {
       margin-top: 24px;
       padding-top: 16px;
@@ -387,7 +428,7 @@
       body * { visibility: hidden; }
       #tabQueue, #tabQueue * { visibility: visible; }
       #tabQueue { position: absolute; left: 0; top: 0; width: 100%; background: #ffffff !important; color: #000000 !important; }
-      .queue-actions, .theme-btn, .tabs, .search-box, .footer { display: none !important; }
+      .queue-actions, .theme-btn, .tabs, .search-box, .footer, .pagination { display: none !important; }
       .queue-item { border: 1px solid #ccc !important; background: #f8fafc !important; color: #000 !important; }
     }
   </style>
@@ -432,6 +473,11 @@
       </div>
       <div id="queueResults" class="results">
         <p class="status-msg">Cargando lista...</p>
+      </div>
+      <div id="queuePagination" class="pagination" style="display: none;">
+        <button class="page-btn" id="prevPageBtn" onclick="changePage(-1)">⬅️ Anterior</button>
+        <span class="page-info" id="pageInfoText">Página 1 de 1</span>
+        <button class="page-btn" id="nextPageBtn" onclick="changePage(1)">Siguiente ➡️</button>
       </div>
     </div>
 
@@ -512,6 +558,11 @@
     const searchCache = new Map();
     const camelotKeys = ["8A (A min)", "9A (E min)", "10A (B min)", "11A (F# min)", "12A (C# min)", "4A (F min)", "5A (C min)", "6A (G min)", "7A (D min)"];
 
+    // Variables de paginación para la lista
+    let globalQueueItems = [];
+    let currentPage = 1;
+    const itemsPerPage = 10;
+
     document.addEventListener('DOMContentLoaded', () => {
       loadHistory();
       const savedTheme = localStorage.getItem('theme') || 'dark';
@@ -540,7 +591,7 @@
       // Escuchar la lista en tiempo real desde Firebase
       queueRef.on('value', (snapshot) => {
         const data = snapshot.val();
-        renderQueue(data);
+        processQueueData(data);
       });
     });
 
@@ -658,7 +709,6 @@
 
       saveToHistory(query);
 
-      // ORDENAR: Del año más antiguo al más moderno (primero los más viejos)
       results.sort((a, b) => {
         const yearA = a.releaseDate ? new Date(a.releaseDate).getFullYear() : 9999;
         const yearB = b.releaseDate ? new Date(b.releaseDate).getFullYear() : 9999;
@@ -697,25 +747,49 @@
       if (!requesterName || requesterName.trim() === "") return;
       requesterName = requesterName.trim();
 
-      // Enviar a Firebase incluyendo el año
-      queueRef.push({
-        title: title,
-        artist: artist,
-        artwork: artwork,
-        previewAudio: previewAudio || '',
-        genre: genre || 'Dance',
-        year: year || 'N/D',
-        user: requesterName,
-        timestamp: Date.now()
+      const songKey = btoa(unescape(encodeURIComponent(title + " - " + artist)))
+        .replace(/[/+=]/g, '_');
+
+      const songRef = db.ref('nostalgia_queue/' + songKey);
+
+      songRef.once('value', (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          const newCount = (data.count || 1) + 1;
+          const updatedUsers = data.users ? `${data.users}, ${requesterName}` : requesterName;
+
+          songRef.update({
+            count: newCount,
+            users: updatedUsers,
+            timestamp: Date.now()
+          });
+        } else {
+          songRef.set({
+            title: title,
+            artist: artist,
+            artwork: artwork,
+            previewAudio: previewAudio || '',
+            genre: genre || 'Dance',
+            year: year || 'N/D',
+            user: requesterName,
+            users: requesterName,
+            count: 1,
+            timestamp: Date.now()
+          });
+        }
       });
 
       alert(`¡Canción añadida a la Lista Próximo Directo correctamente! 🎉`);
     }
 
-    function renderQueue(data) {
+    function processQueueData(data) {
       const queueResults = document.getElementById('queueResults');
+      const paginationDiv = document.getElementById('queuePagination');
+
       if (!data) {
+        globalQueueItems = [];
         queueResults.innerHTML = '<p class="status-msg">La lista está vacía actualmente.</p>';
+        paginationDiv.style.display = 'none';
         return;
       }
 
@@ -724,29 +798,87 @@
         items.push({ id: id, ...data[id] });
       }
 
-      items.sort((a, b) => a.timestamp - b.timestamp);
-      queueResults.innerHTML = items.map((item, index) => {
+      // Ordenar de mayor a menor votos (count)
+      items.sort((a, b) => {
+        const countA = a.count || 1;
+        const countB = b.count || 1;
+        if (countB !== countA) {
+          return countB - countA;
+        }
+        return a.timestamp - b.timestamp;
+      });
+
+      globalQueueItems = items;
+      
+      // Controlar que la página actual no sea mayor que el total posible
+      const totalPages = Math.ceil(globalQueueItems.length / itemsPerPage) || 1;
+      if (currentPage > totalPages) currentPage = totalPages;
+
+      renderQueuePage();
+    }
+
+    function renderQueuePage() {
+      const queueResults = document.getElementById('queueResults');
+      const paginationDiv = document.getElementById('queuePagination');
+      const pageInfoText = document.getElementById('pageInfoText');
+      const prevBtn = document.getElementById('prevPageBtn');
+      const nextBtn = document.getElementById('nextPageBtn');
+
+      if (globalQueueItems.length === 0) {
+        queueResults.innerHTML = '<p class="status-msg">La lista está vacía actualmente.</p>';
+        paginationDiv.style.display = 'none';
+        return;
+      }
+
+      const totalPages = Math.ceil(globalQueueItems.length / itemsPerPage);
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const currentItems = globalQueueItems.slice(startIndex, endIndex);
+
+      // Mostrar controles de paginación solo si hay más de 10 elementos
+      if (globalQueueItems.length > itemsPerPage) {
+        paginationDiv.style.display = 'flex';
+        pageInfoText.textContent = `Página ${currentPage} de ${totalPages}`;
+        prevBtn.disabled = currentPage === 1;
+        nextBtn.disabled = currentPage === totalPages;
+      } else {
+        paginationDiv.style.display = 'none';
+      }
+
+      queueResults.innerHTML = currentItems.map((item, index) => {
+        const absoluteIndex = startIndex + index + 1;
         const safeTitle = (item.title || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
         const safeArtist = (item.artist || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
         const artworkHD = (item.artwork || '').replace('100x100bb', '1000x1000bb');
         const previewAudio = item.previewAudio || '';
         const genre = item.genre || 'Dance';
         const year = item.year || 'N/D';
+        const count = item.count || 1;
+        const displayUser = item.users || item.user || 'Anónimo';
 
         return `
           <div class="queue-item">
             <img src="${item.artwork}" alt="${item.title}" onclick="openModal('${artworkHD}', '${safeTitle}', '${safeArtist}', '${previewAudio}', '${genre}')">
             <div class="song-info" onclick="openModal('${artworkHD}', '${safeTitle}', '${safeArtist}', '${previewAudio}', '${genre}')">
-              <div class="song-title">${index + 1}. ${item.title}</div>
+              <div class="song-title">${absoluteIndex}. ${item.title}</div>
               <div class="song-artist">${item.artist}</div>
-              <div class="requester-tag">Pedido por: ${item.user}</div>
+              <div class="requester-tag">Pedido por: ${displayUser}</div>
             </div>
             <div class="action-buttons">
+              <span class="badge-count">🔥 ${count} ${count === 1 ? 'voto' : 'votos'}</span>
               <span class="badge-year">${year}</span>
             </div>
           </div>
         `;
       }).join('');
+    }
+
+    function changePage(direction) {
+      const totalPages = Math.ceil(globalQueueItems.length / itemsPerPage);
+      currentPage += direction;
+      if (currentPage < 1) currentPage = 1;
+      if (currentPage > totalPages) currentPage = totalPages;
+      renderQueuePage();
     }
 
     function exportQueueToPDF() {
@@ -759,6 +891,7 @@
       
       if (pass === "jbdeejay1") {
         queueRef.remove().then(() => {
+          currentPage = 1;
           alert("Lista borrada con éxito.");
         });
       } else {
